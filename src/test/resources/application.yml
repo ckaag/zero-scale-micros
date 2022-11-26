@@ -1,0 +1,6 @@
+zsm:
+  services:
+    -
+      name: "echo"
+      image: "nginx:1.22.1"
+      internalPort: 80
