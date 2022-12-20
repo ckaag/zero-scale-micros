@@ -1,11 +1,17 @@
 package com.github.ckaag.zeroscalemicros.services
 
+import org.apache.juli.logging.LogFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.testcontainers.containers.GenericContainer
+import org.testcontainers.containers.output.OutputFrame
+import org.testcontainers.images.builder.ImageFromDockerfile
+import org.testcontainers.utility.DockerImageName
+import java.io.File
 import java.time.Clock
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Consumer
 
 data class RedirectTarget(val host: String, val port: Int)
 
@@ -58,11 +64,54 @@ class ContainerRegistryService(
 @Service
 class DockerService {
     private val redirects = ConcurrentHashMap<ServiceName, Pair<ZService, GenericContainer<*>>>()
+
+    private var containerLogger = LogFactory.getLog(org.testcontainers.Testcontainers::class.java)
+    private var logConsumer: Consumer<OutputFrame> = Consumer<OutputFrame> { containerLogger.debug(it.utf8String) }
+
     fun startService(service: ZService): RedirectTarget {
-        val g = GenericContainer(service.image.asTestcontainersImageName())
+        return if (service.isDockerfile()) {
+            startServiceWithDockerfile(service)
+        } else {
+            startServiceWithImage(service)
+        }
+    }
+
+    private fun startServiceWithImage(service: ZService): RedirectTarget {
+        val rawContainer =
+            GenericContainer(
+                DockerImageName.parse(service.image!!.imageAndTag)!!
+            )
+        val g = rawContainer
             .withExposedPorts(service.internalPort.toInt())
-        //.waitingFor(Wait.forHttp("/"))
         g.start()
+        g.followOutput(logConsumer)
+        redirects[service.name] = Pair(service, g)
+        return RedirectTarget(g.host, g.firstMappedPort!!)
+    }
+
+    private fun startServiceWithDockerfile(service: ZService): RedirectTarget {
+        val rawContainer =
+            GenericContainer(
+                ImageFromDockerfile().withFileFromPath(
+                    ".",
+                    if (service.dockerfile!!.endsWith("Dockerfile")) File(service.dockerfile).toPath().parent else File(
+                        service.dockerfile
+                    ).toPath()
+                )
+            )
+        val g = rawContainer
+            .withExposedPorts(service.internalPort.toInt())
+            .withEnv("SPRING_PROFILES_ACTIVE", service.profile)
+            .let {
+                if (service.profile.isNotBlank()) {
+                    it.withCommand()
+                } else {
+                    it
+                }
+            }
+            .withEnv(service.env)
+        g.start()
+        g.followOutput(logConsumer)
         redirects[service.name] = Pair(service, g)
         return RedirectTarget(g.host, g.firstMappedPort!!)
     }

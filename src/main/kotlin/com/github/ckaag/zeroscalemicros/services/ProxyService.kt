@@ -44,7 +44,8 @@ class ProxyService(
         path: String,
         body: ByteArray?
     ): HttpResponse<ByteArray> {
-        val redirectHost = dockerRegistryService.waitForService(zService.name)
+        val redirectHost = config.getOverwrittenWithExternal(zService.name)?:
+            dockerRegistryService.waitForService(zService.name)
 
         val client = HttpClient.newBuilder().build()
 
@@ -52,7 +53,7 @@ class ProxyService(
             .method(method, HttpRequest.BodyPublishers.ofByteArray(body))
             .uri(URI.create("http://localhost:${redirectHost.port}$path"))
 
-        val skipHeaders = setOf("Host", "Content-Length")
+        val skipHeaders = setOf("Host", "Content-Length", "Connection")
         headers.filter { !skipHeaders.contains(it.key) }.forEach { (key, value) ->
             try {
                 request = request.header(key, value)
@@ -80,9 +81,9 @@ class ProxyService(
 
             port = buildScaleToZeroProxyInstance(service, port)
 
-            port += 1
-
             registerServiceInEureka(service, port)
+
+            port += 1
         }
     }
 
@@ -95,7 +96,7 @@ class ProxyService(
                     method.name,
                     service,
                     ctx.headerMap(),
-                    ctx.path(),
+                    ctx.path() + (ctx.queryString()?.let{"?$it"}?:""),
                     ctx.bodyAsBytes()
                 )
                 // tests break when using ctx.future {f} instead here, so we go with sync for now
@@ -111,6 +112,7 @@ class ProxyService(
     }
 
     private fun registerServiceInEureka(service: ZService, port: Int) {
+        @Suppress("SpellCheckingInspection")
         val json = """{
         "instanceId": "${service.name.name}-1",
         "app": "${service.name.name}",
@@ -156,129 +158,129 @@ class ProxyService(
     private fun initializeEurekaServiceRegistry() {
         val serverConfig = object : EurekaServerConfig {
             override fun getAWSAccessId(): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getAWSSecretKey(): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getEIPBindRebindRetries(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getEIPBindingRetryIntervalMsWhenUnbound(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getEIPBindingRetryIntervalMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun shouldEnableSelfPreservation(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRenewalPercentThreshold(): Double {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRenewalThresholdUpdateIntervalMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getExpectedClientRenewalIntervalSeconds(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getPeerEurekaNodesUpdateIntervalMs(): Int = 1
 
             override fun shouldEnableReplicatedRequestCompression(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getNumberOfReplicationRetries(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getPeerEurekaStatusRefreshTimeIntervalMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getWaitTimeInMsWhenSyncEmpty(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getPeerNodeConnectTimeoutMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getPeerNodeReadTimeoutMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getPeerNodeTotalConnections(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getPeerNodeTotalConnectionsPerHost(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getPeerNodeConnectionIdleTimeoutSeconds(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRetentionTimeInMSInDeltaQueue(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getDeltaRetentionTimerIntervalInMs(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getEvictionIntervalTimerInMs(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun shouldUseAwsAsgApi(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getASGQueryTimeoutMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getASGUpdateIntervalMs(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getASGCacheExpiryTimeoutMs(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getResponseCacheAutoExpirationInSeconds(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getResponseCacheUpdateIntervalMs(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun shouldUseReadOnlyResponseCache(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun shouldDisableDelta(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMaxIdleThreadInMinutesAgeForStatusReplication(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMinThreadsForStatusReplication(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMaxThreadsForStatusReplication(): Int = 1
@@ -286,168 +288,168 @@ class ProxyService(
             override fun getMaxElementsInStatusReplicationPool(): Int = 1
 
             override fun shouldSyncWhenTimestampDiffers(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRegistrySyncRetries(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRegistrySyncRetryWaitMs(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMaxElementsInPeerReplicationPool(): Int = 1
 
             override fun getMaxIdleThreadAgeInMinutesForPeerReplication(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMinThreadsForPeerReplication(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMaxThreadsForPeerReplication(): Int = 1
 
             override fun getHealthStatusMinNumberOfAvailablePeers(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMaxTimeForReplication(): Int = 1
 
             override fun shouldPrimeAwsReplicaConnections(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun shouldDisableDeltaForRemoteRegions(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionConnectTimeoutMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionReadTimeoutMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionTotalConnections(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionTotalConnectionsPerHost(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionConnectionIdleTimeoutSeconds(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun shouldGZipContentFromRemoteRegion(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionUrlsWithName(): MutableMap<String, String> {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             @Deprecated("Deprecated in Java")
             override fun getRemoteRegionUrls(): Array<String> {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionAppWhitelist(regionName: String?): MutableSet<String> {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionRegistryFetchInterval(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionFetchThreadPoolSize(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionTrustStore(): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRemoteRegionTrustStorePassword(): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun disableTransparentFallbackToOtherRegion(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun shouldBatchReplication(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getMyUrl() = "http://localhost:8080"
 
             override fun shouldLogIdentityHeaders(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun isRateLimiterEnabled(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun isRateLimiterThrottleStandardClients(): Boolean {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRateLimiterPrivilegedClients(): MutableSet<String> {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRateLimiterBurstSize(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRateLimiterRegistryFetchAverageRate(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRateLimiterFullFetchAverageRate(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getListAutoScalingGroupsRoleName(): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getJsonCodecName(): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getXmlCodecName(): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getBindingStrategy(): AwsBindingStrategy {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRoute53DomainTTL(): Long {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRoute53BindRebindRetries(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getRoute53BindingRetryIntervalMs(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getExperimental(name: String?): String {
-                TODO("Not yet implemented")
+                unsupported()
             }
 
             override fun getInitialCapacityOfResponseCache(): Int {
-                TODO("Not yet implemented")
+                unsupported()
             }
         }
         instanceRegistry.init(object : PeerEurekaNodes(
@@ -476,6 +478,12 @@ class ProxyService(
                 start()
             }
         })
+
+
+    }
+
+    private fun unsupported(): Nothing {
+        throw UnsupportedOperationException()
     }
 
     private fun findFreePort(startPort: Int): Int {

@@ -3,8 +3,22 @@ eureka:
     register-with-eureka: false
     fetch-registry: false
 zsm:
+  overwrites:
+    -
+      name: "localhostprovider"
   services:
     -
       name: "echo"
       image: "nginx:1.22.1"
       internalPort: 80
+    -
+      name: "demo"
+      dockerfile: ".docker/demo/Dockerfile"
+      internalPort: 8080
+      profile: "local"
+      env:
+        "SPRING_APPLICATION_JSON": "{\"spring\":{\"datasource\":{\"url\":\"jdbc:mysql://localhost/test\"}},\"server\":{\"port\":8080}}"
+logging:
+  level:
+    org:
+      testcontainers: DEBUG
