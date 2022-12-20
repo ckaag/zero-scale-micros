@@ -44,8 +44,8 @@ class ProxyService(
         path: String,
         body: ByteArray?
     ): HttpResponse<ByteArray> {
-        val redirectHost = config.getOverwrittenWithExternal(zService.name)?:
-            dockerRegistryService.waitForService(zService.name)
+        val redirectHost =
+            config.getOverwrittenWithExternal(zService.name) ?: dockerRegistryService.waitForService(zService.name)
 
         val client = HttpClient.newBuilder().build()
 
@@ -96,7 +96,7 @@ class ProxyService(
                     method.name,
                     service,
                     ctx.headerMap(),
-                    ctx.path() + (ctx.queryString()?.let{"?$it"}?:""),
+                    ctx.path() + (ctx.queryString()?.let { "?$it" } ?: ""),
                     ctx.bodyAsBytes()
                 )
                 // tests break when using ctx.future {f} instead here, so we go with sync for now

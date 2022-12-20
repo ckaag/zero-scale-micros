@@ -97,7 +97,7 @@ class DockerService(
                 DockerImageName.parse(service.image!!.imageAndTag)!!
             )
         val g = rawContainer
-            .withExposedPorts(service.internalPort.toInt())
+            .withExposedPorts(service.internalPort ?: 8080)
             .withEnv(collectEnv(service.env, service.profile))
         g.withAccessToHost(true)
         makePortsVisible()
@@ -107,16 +107,18 @@ class DockerService(
         return RedirectTarget(g.host, g.firstMappedPort!!)
     }
 
-    private fun collectEnv(env: Map<String, String>, profile: String): MutableMap<String, String> {
+    private fun collectEnv(env: Map<String, String>?, profile: String?): MutableMap<String, String> {
         val map = mutableMapOf<String, String>()
-        env.forEach { (k, v) -> map[k] = v }
+        env?.entries?.forEach {
+            map[it.key] = it.value
+        }
 
         map[SPRING_APPLICATION_JSON] = mergeJsonStrings(
-            env[SPRING_APPLICATION_JSON] ?: "{}",
+            env?.get(SPRING_APPLICATION_JSON) ?: "{}",
             "{\"eureka\":{\"client\":{\"serviceUrl\":{\"defaultZone\":\"http://host.testcontainers.internal:8761/eureka\"}, \"hostname\": \"host.testcontainers.internal\"}}, \"server\":{\"port\":8080}}"
         )
 
-        map["SPRING_PROFILES_ACTIVE"] = profile
+        map["SPRING_PROFILES_ACTIVE"] = profile ?: ""
 
         return map
     }
@@ -174,7 +176,7 @@ class DockerService(
                 )
             )
         val g = rawContainer
-            .withExposedPorts(service.internalPort.toInt())
+            .withExposedPorts(service.internalPort ?: 8080)
             .withEnv(collectEnv(service.env, service.profile))
         g.withAccessToHost(true)
         makePortsVisible()

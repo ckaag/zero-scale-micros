@@ -4,8 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "zsm")
 data class ZSMConfig(
-    val overwrites: List<ZOverwrite> = listOf(),
-    val services: List<ZService> = listOf(),
+    var overwrites: List<ZOverwrite> = listOf(),
+    var services: List<ZService> = listOf(),
 ) {
     fun getServiceConfig(serviceName: ServiceName) = services.find { it.name == serviceName }
         ?: throw Exception("Service not configured but asked for: $serviceName")
@@ -27,16 +27,15 @@ data class ZOverwrite(val name: ServiceName, val port: Int? = null, val host: St
 value class ServiceName(val name: String)
 
 @JvmInline
-value class DockerImageId(val imageAndTag: String) {
-}
+value class DockerImageId(val imageAndTag: String)
 
 data class ZService(
     val name: ServiceName,
-    val env: Map<String, String> = mapOf(),
-    val profile: String = "",
+    val env: Map<String, String>? = null,
+    val profile: String? = null,
     val image: DockerImageId? = null,
     val dockerfile: String? = null,
-    val internalPort: UShort = 8080u
+    val internalPort: Int? = null
 ) {
     fun isDockerfile(): Boolean = dockerfile != null
 
