@@ -20,7 +20,7 @@ data class ZSMConfig(
 }
 
 data class ZOverwrite(val name: ServiceName, val port: Int? = null, val host: String? = null) {
-    fun asRedirectTarget(): RedirectTarget = RedirectTarget(host ?: "localhost", port ?: 8080)
+    fun asRedirectTarget(): RedirectTarget = RedirectTarget(host ?: "host.testcontainers.internal", port ?: 8080)
 }
 
 @JvmInline

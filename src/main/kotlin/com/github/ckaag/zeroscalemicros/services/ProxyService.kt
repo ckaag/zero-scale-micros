@@ -51,7 +51,7 @@ class ProxyService(
 
         var request = HttpRequest.newBuilder()
             .method(method, HttpRequest.BodyPublishers.ofByteArray(body))
-            .uri(URI.create("http://localhost:${redirectHost.port}$path"))
+            .uri(URI.create("http://host.testcontainers.internal:${redirectHost.port}$path"))
 
         val skipHeaders = setOf("Host", "Content-Length", "Connection")
         headers.filter { !skipHeaders.contains(it.key) }.forEach { (key, value) ->
@@ -117,7 +117,7 @@ class ProxyService(
         "instanceId": "${service.name.name}-1",
         "app": "${service.name.name}",
         "ipAddr": "127.0.0.1",
-        "hostName": "localhost",
+        "hostName": "host.testcontainers.internal",
         "status": "UP",
         "overriddenStatus": "UNKNOWN",
         "port": {
@@ -138,12 +138,12 @@ class ProxyService(
             "name":"MyOwn"
         },
         "appGroupName": "UNKNOWN",
-        "homePageUrl": "http://localhost:$port",
-        "statusPageUrl": "http://localhost:$port/actuator/status",
-        "healthCheckUrl": "http://localhost:$port/actuator/health",
-        "secureHealthCheckUrl": "http://localhost:$port/actuator/health",
-        "secureVipAddress": "http://localhost:$port/actuator/svip",
-        "vipAddress": "http://localhost:$port/actuator/vip",
+        "homePageUrl": "http://host.testcontainers.internal:$port",
+        "statusPageUrl": "http://host.testcontainers.internal:$port/actuator/status",
+        "healthCheckUrl": "http://host.testcontainers.internal:$port/actuator/health",
+        "secureHealthCheckUrl": "http://host.testcontainers.internal:$port/actuator/health",
+        "secureVipAddress": "http://host.testcontainers.internal:$port/actuator/svip",
+        "vipAddress": "http://host.testcontainers.internal:$port/actuator/vip",
         "isCoordinatingDiscoveryServer": "false",
         "lastUpdatedTimestamp": "${Date().time}",
         "lastDirtyTimestamp": "${Date().time}",
@@ -386,7 +386,7 @@ class ProxyService(
                 unsupported()
             }
 
-            override fun getMyUrl() = "http://localhost:8080"
+            override fun getMyUrl() = "http://host.testcontainers.internal:8080"
 
             override fun shouldLogIdentityHeaders(): Boolean {
                 unsupported()
@@ -457,10 +457,10 @@ class ProxyService(
             serverConfig, eurekaClientConfigBean, null, applicationInfoManager
         ) {
             override fun createPeerEurekaNode(peerEurekaNodeUrl: String?): PeerEurekaNode {
-                val url = "http://localhost:8761/eureka"
+                val url = "http://host.testcontainers.internal:8761/eureka"
                 return PeerEurekaNode(
                     instanceRegistry,
-                    "localhost",
+                    "host.testcontainers.internal",
                     url,
                     Jersey3ReplicationClient(object : EurekaJersey3Client {
                         override fun getClient(): Client? {

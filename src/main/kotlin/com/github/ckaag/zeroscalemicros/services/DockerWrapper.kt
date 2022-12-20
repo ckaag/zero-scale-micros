@@ -1,8 +1,15 @@
 package com.github.ckaag.zeroscalemicros.services
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
+import com.netflix.eureka.registry.PeerAwareInstanceRegistry
 import org.apache.juli.logging.LogFactory
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
+import org.testcontainers.Testcontainers
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.output.OutputFrame
 import org.testcontainers.images.builder.ImageFromDockerfile
@@ -47,10 +54,10 @@ class ContainerRegistryService(
         }
     }
 
-    @Scheduled(fixedRate = 10_000)
+    @Scheduled(fixedRate = 60_000) // kill containers after 5m
     fun stopIdleContainers() {
         lastRequest.forEach { (serviceName, lastRequest) ->
-            if (lastRequest.plusSeconds(60L).isBefore(clock.instant())) {
+            if (lastRequest.plusSeconds(300L).isBefore(clock.instant())) {
                 synchronized(config.getServiceConfig(serviceName)) {
                     dockerService.stopService(serviceName)
                     redirects.remove(serviceName)
@@ -60,13 +67,21 @@ class ContainerRegistryService(
     }
 }
 
+private const val SPRING_APPLICATION_JSON = "SPRING_APPLICATION_JSON"
+
 // NOT THREAD-SAFE AT ALL
 @Service
-class DockerService {
+class DockerService(
+    private val instanceRegistry: PeerAwareInstanceRegistry,
+    private val objectMapper: ObjectMapper
+) {
     private val redirects = ConcurrentHashMap<ServiceName, Pair<ZService, GenericContainer<*>>>()
 
     private var containerLogger = LogFactory.getLog(org.testcontainers.Testcontainers::class.java)
     private var logConsumer: Consumer<OutputFrame> = Consumer<OutputFrame> { containerLogger.debug(it.utf8String) }
+
+    @Value("\${server.port}")
+    private lateinit var serverPort: Number
 
     fun startService(service: ZService): RedirectTarget {
         return if (service.isDockerfile()) {
@@ -83,10 +98,69 @@ class DockerService {
             )
         val g = rawContainer
             .withExposedPorts(service.internalPort.toInt())
+            .withEnv(collectEnv(service.env, service.profile))
+        g.withAccessToHost(true)
+        makePortsVisible()
         g.start()
         g.followOutput(logConsumer)
         redirects[service.name] = Pair(service, g)
         return RedirectTarget(g.host, g.firstMappedPort!!)
+    }
+
+    private fun collectEnv(env: Map<String, String>, profile: String): MutableMap<String, String> {
+        val map = mutableMapOf<String, String>()
+        env.forEach { (k, v) -> map[k] = v }
+
+        map[SPRING_APPLICATION_JSON] = mergeJsonStrings(
+            env[SPRING_APPLICATION_JSON] ?: "{}",
+            "{\"eureka\":{\"client\":{\"serviceUrl\":{\"defaultZone\":\"http://host.testcontainers.internal:8761/eureka\"}, \"hostname\": \"host.testcontainers.internal\"}}, \"server\":{\"port\":8080}}"
+        )
+
+        map["SPRING_PROFILES_ACTIVE"] = profile
+
+        return map
+    }
+
+    @Suppress("SameParameterValue")
+    private fun mergeJsonStrings(a: String, b: String): String {
+        return merge(objectMapper.readTree(a), objectMapper.readTree(b)).toString()
+    }
+
+    private fun merge(mainNode: JsonNode, updateNode: JsonNode): JsonNode {
+        val fieldNames: Iterator<String> = updateNode.fieldNames()
+        while (fieldNames.hasNext()) {
+            val updatedFieldName: String = fieldNames.next()
+            val valueToBeUpdated: JsonNode? = mainNode.get(updatedFieldName)
+            val updatedValue: JsonNode? = updateNode.get(updatedFieldName)
+            if (mainNode is ObjectNode) {
+                if (valueToBeUpdated == null) {
+                    mainNode.set<JsonNode>(updatedFieldName, updatedValue)
+                    continue
+                }
+                if (updatedValue == null) {
+                    mainNode.set<JsonNode>(updatedFieldName, valueToBeUpdated)
+                    continue
+                }
+            }
+            if (valueToBeUpdated!!.isArray && updatedValue!!.isArray
+            ) {
+                for (i in 0 until updatedValue.size()) {
+                    val updatedChildNode: JsonNode = updatedValue.get(i)
+                    if (valueToBeUpdated.size() <= i) {
+                        (valueToBeUpdated as ArrayNode).add(updatedChildNode)
+                    }
+                    val childNodeToBeUpdated: JsonNode = valueToBeUpdated.get(i)
+                    merge(childNodeToBeUpdated, updatedChildNode)
+                }
+            } else if (valueToBeUpdated.isObject) {
+                merge(valueToBeUpdated, updatedValue!!)
+            } else {
+                if (mainNode is ObjectNode) {
+                    mainNode.replace(updatedFieldName, updatedValue)
+                }
+            }
+        }
+        return mainNode
     }
 
     private fun startServiceWithDockerfile(service: ZService): RedirectTarget {
@@ -101,19 +175,22 @@ class DockerService {
             )
         val g = rawContainer
             .withExposedPorts(service.internalPort.toInt())
-            .withEnv("SPRING_PROFILES_ACTIVE", service.profile)
-            .let {
-                if (service.profile.isNotBlank()) {
-                    it.withCommand()
-                } else {
-                    it
-                }
-            }
-            .withEnv(service.env)
+            .withEnv(collectEnv(service.env, service.profile))
+        g.withAccessToHost(true)
+        makePortsVisible()
         g.start()
         g.followOutput(logConsumer)
         redirects[service.name] = Pair(service, g)
         return RedirectTarget(g.host, g.firstMappedPort!!)
+    }
+
+    private fun makePortsVisible() {
+        // eureka port visible
+        Testcontainers.exposeHostPorts(
+            serverPort.toInt(),
+            *instanceRegistry.applications.registeredApplications.flatMap { it.instances }.map { it.port }.toIntArray()
+        )
+        //If using different network setup: Testcontainers.exposeHostPorts(serverPort.toInt(), *instanceRegistry.applications.registeredApplications.filter { zsmConfig.services.none {s -> it.name == s.name.name} || zsmConfig.overwrites.any {s -> s.name.name == it.name}  }.flatMap { it.instances }.map { it.port}.toIntArray() )
     }
 
     fun stopService(serviceName: ServiceName) {

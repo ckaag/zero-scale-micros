@@ -4,11 +4,14 @@ import feign.Response;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.netflix.eureka.EnableEurekaClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 @SpringBootApplication
+@EnableEurekaClient
 @EnableFeignClients
 public class DemoApplication {
 
@@ -18,10 +21,10 @@ public class DemoApplication {
 
 }
 
-@FeignClient("localhostprovider")
+@FeignClient("LOCALHOSTPROVIDER")
 interface MyFeignClient {
-	@GetMapping("/myfeignreceiver")
-	Response getMyValue(@RequestParam("myValue") String myValue);
+	@GetMapping(value = "/myfeignreceiver", consumes = MediaType.APPLICATION_JSON_VALUE)
+	String getMyValue(@RequestParam("myValue") String myValue);
 }
 
 
@@ -37,8 +40,9 @@ class MyRestController {
 		return "Get Response from demo with param: " + myParam;
 	}
 	@GetMapping("/feign")
-	public Response getFeignResponse(@RequestParam("myParam") String myParam) {
-		return myFeignClient.getMyValue(myParam);
+	public String getFeignResponse(@RequestParam("myParam") String myParam) {
+		var feignResult = myFeignClient.getMyValue(myParam);
+		return feignResult;
 	}
 	@PostMapping
 	public String post(@RequestBody String body) {
