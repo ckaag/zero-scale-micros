@@ -1,0 +1,6 @@
+version: "3.9"
+services:
+  mycomposenginx:
+    image: "nginx:1.22.1"
+    ports:
+      - "8480:80"

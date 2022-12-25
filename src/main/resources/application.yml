@@ -8,6 +8,7 @@ zsm:
   overwrites:
     -
       name: "localhostprovider"
+  docker-compose: .docker/compose/docker-compose.yml
   services:
     -
       name: "echo"

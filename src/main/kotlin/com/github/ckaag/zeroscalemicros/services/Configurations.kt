@@ -1,11 +1,13 @@
 package com.github.ckaag.zeroscalemicros.services
 
 import org.springframework.boot.context.properties.ConfigurationProperties
+import java.io.File
 
 @ConfigurationProperties(prefix = "zsm")
 data class ZSMConfig(
     var overwrites: List<ZOverwrite> = listOf(),
     var services: List<ZService> = listOf(),
+    var dockerCompose: String? = null,
 ) {
     fun getServiceConfig(serviceName: ServiceName) = services.find { it.name == serviceName }
         ?: throw Exception("Service not configured but asked for: $serviceName")
@@ -16,6 +18,13 @@ data class ZSMConfig(
 
     fun getOverwrittenWithExternal(name: ServiceName): RedirectTarget? {
         return this.overwrites.find { it.name == name }?.asRedirectTarget()
+    }
+
+    val composeFile: File? by lazy {
+        dockerCompose?.let {
+            val x = File(it)
+            if (x.canRead()) x else null
+        }
     }
 }
 

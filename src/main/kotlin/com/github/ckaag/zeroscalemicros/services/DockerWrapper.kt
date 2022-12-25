@@ -5,11 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.netflix.eureka.registry.PeerAwareInstanceRegistry
+import jakarta.annotation.PostConstruct
+import jakarta.annotation.PreDestroy
 import org.apache.juli.logging.LogFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.testcontainers.Testcontainers
+import org.testcontainers.containers.DockerComposeContainer
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.output.OutputFrame
 import org.testcontainers.images.builder.ImageFromDockerfile
@@ -28,6 +31,8 @@ class ContainerRegistryService(
     private val clock: Clock,
     private val config: ZSMConfig
 ) {
+    @Value("\${zsm.containerStandByInSeconds:300}")
+    private lateinit var containerStandbyInSeconds: Number
     private val redirects =
         ConcurrentHashMap<ServiceName, RedirectTarget>() // contains testcontainers relevant redirection info for all running containers
     private val lastRequest =
@@ -57,7 +62,7 @@ class ContainerRegistryService(
     @Scheduled(fixedRate = 60_000) // kill containers after 5m
     fun stopIdleContainers() {
         lastRequest.forEach { (serviceName, lastRequest) ->
-            if (lastRequest.plusSeconds(300L).isBefore(clock.instant())) {
+            if (lastRequest.plusSeconds(containerStandbyInSeconds.toLong()).isBefore(clock.instant())) {
                 synchronized(config.getServiceConfig(serviceName)) {
                     dockerService.stopService(serviceName)
                     redirects.remove(serviceName)
@@ -73,7 +78,8 @@ private const val SPRING_APPLICATION_JSON = "SPRING_APPLICATION_JSON"
 @Service
 class DockerService(
     private val instanceRegistry: PeerAwareInstanceRegistry,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val config: ZSMConfig
 ) {
     private val redirects = ConcurrentHashMap<ServiceName, Pair<ZService, GenericContainer<*>>>()
 
@@ -82,12 +88,30 @@ class DockerService(
 
     @Value("\${server.port}")
     private lateinit var serverPort: Number
+    private lateinit var dockerComposeContainer: DockerComposeContainer<*>
 
     fun startService(service: ZService): RedirectTarget {
         return if (service.isDockerfile()) {
             startServiceWithDockerfile(service)
         } else {
             startServiceWithImage(service)
+        }
+    }
+
+    @PostConstruct
+    fun start() {
+        val compose = config.composeFile
+        if (compose != null) {
+            dockerComposeContainer =
+                DockerComposeContainer(compose)
+            dockerComposeContainer.start()
+        }
+    }
+
+    @PreDestroy
+    fun stop() {
+        if (config.composeFile != null) {
+            dockerComposeContainer.stop()
         }
     }
 
