@@ -43,6 +43,7 @@ data class ZService(
     val env: Map<String, String>? = null,
     val profile: String? = null,
     val image: DockerImageId? = null,
+    val waitForRegex: String? = null,
     val dockerfile: String? = null,
     val internalPort: Int? = null
 ) {

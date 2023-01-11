@@ -44,6 +44,7 @@ class ProxyService(
         path: String,
         body: ByteArray?
     ): HttpResponse<ByteArray> {
+        val log = LoggerFactory.getLogger(this.javaClass)
         val redirectHost =
             config.getOverwrittenWithExternal(zService.name) ?: dockerRegistryService.waitForService(zService.name)
 
@@ -58,9 +59,11 @@ class ProxyService(
             try {
                 request = request.header(key, value)
             } catch (e: Exception) {
-                LoggerFactory.getLogger(this.javaClass).info("Skipping header: $key = $value", e)
+                log.info("Skipping header: $key = $value", e)
             }
         }
+
+        log.debug("Proxying $method to $path of service ${zService.name.name} with external port ${redirectHost.port}")
 
         //return client.sendAsync(request.build(), HttpResponse.BodyHandlers.ofByteArray())
         return client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray())

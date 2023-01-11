@@ -15,6 +15,7 @@ import org.testcontainers.Testcontainers
 import org.testcontainers.containers.DockerComposeContainer
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.output.OutputFrame
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy
 import org.testcontainers.images.builder.ImageFromDockerfile
 import org.testcontainers.utility.DockerImageName
 import java.io.File
@@ -120,9 +121,12 @@ class DockerService(
             GenericContainer(
                 DockerImageName.parse(service.image!!.imageAndTag)!!
             )
-        val g = rawContainer
+        var g = rawContainer
             .withExposedPorts(service.internalPort ?: 8080)
             .withEnv(collectEnv(service.env, service.profile))
+        if (service.waitForRegex != null) {
+            g = g.waitingFor(LogMessageWaitStrategy().withRegEx(service.waitForRegex))
+        }
         g.withAccessToHost(true)
         makePortsVisible()
         g.start()
@@ -199,9 +203,12 @@ class DockerService(
                     ).toPath()
                 )
             )
-        val g = rawContainer
+        var g = rawContainer
             .withExposedPorts(service.internalPort ?: 8080)
             .withEnv(collectEnv(service.env, service.profile))
+        if (service.waitForRegex != null) {
+            g = g.waitingFor(LogMessageWaitStrategy().withRegEx(service.waitForRegex))
+        }
         g.withAccessToHost(true)
         makePortsVisible()
         g.start()
